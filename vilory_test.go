@@ -12,7 +12,8 @@ func runAction(id, str string) {
 
 func endAction(id string, err error) {
 	if err != nil {
-		panic(err)
+		// see this err a normal info
+		fmt.Println(err)
 	}
 	fmt.Printf("[%s] finished\n", id)
 }
@@ -23,12 +24,7 @@ func TestVilory(t *testing.T) {
 
 	fmt.Println("worker1 ----------------- start")
 	worker1 := a.SetOrGetWorker("worker1")
-	err = worker1.Start("ls", runAction, endAction)
-	if err != nil {
-		t.Error(err)
-	}
-	time.Sleep(3 * time.Second)
-	err = a.DelWorker("worker1")
+	err = worker1.Run("ls", runAction, endAction)
 	if err != nil {
 		t.Error(err)
 	}
@@ -60,16 +56,10 @@ func TestVilory(t *testing.T) {
 	}()
 
 	time.Sleep(15 * time.Second)
-	err = a.DelWorker("worker2")
-	if err != nil {
-		t.Error(err)
-	}
+	a.DelWorker("worker2")
 
-	time.Sleep(30 * time.Second)
-	err = a.DelWorker("worker3")
-	if err != nil {
-		t.Error(err)
-	}
+	time.Sleep(15 * time.Second)
+	a.DelWorker("worker3")
 
 	if worker1.IsRunning || worker2.IsRunning || worker3.IsRunning {
 		t.Error("worker still running")

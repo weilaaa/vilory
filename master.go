@@ -32,13 +32,13 @@ func (m *Master) SetOrGetWorker(id string) *Worker {
 	}
 	if _, ok := m.pool[id]; !ok {
 		m.pool[id] = NewWorker(id)
-		m.pool[id].BindMaster(m)
+		m.pool[id].bindMaster(m)
 	}
 
 	return m.pool[id]
 }
 
-func (m *Master) RunWorker(id string) error {
+func (m *Master) runWorker(id string) error {
 	m.Lock()
 	defer m.Unlock()
 	if m.pool == nil {
@@ -53,7 +53,7 @@ func (m *Master) RunWorker(id string) error {
 
 	go func() {
 		doneCh := make(chan error)
-		reader := bufio.NewReader(worker.Output())
+		reader := bufio.NewReader(worker.output())
 
 		go func() {
 			<-worker.stopCh
@@ -83,7 +83,7 @@ func (m *Master) RunWorker(id string) error {
 		defer cancel()
 
 		// wait process release resource
-		go func() { doneCh <- worker.Wait() }()
+		go func() { doneCh <- worker.wait() }()
 
 		for {
 			select {
@@ -108,24 +108,16 @@ func (m *Master) RunWorker(id string) error {
 }
 
 // DelWorker return until worker process release resource and be killed
-func (m *Master) DelWorker(id string) error {
+func (m *Master) DelWorker(id string) {
 	m.Lock()
-	defer m.Unlock()
 	worker, ok := m.pool[id]
+	// must unlock here to avoid deadlock
+	m.Unlock()
 	if !ok {
 		fmt.Printf("[info] %s has already exited\n", id)
-		return nil
+		return
 	}
 
-	worker.Stop()
-
-	for {
-		select {
-		case <-time.Tick(20 * time.Millisecond):
-			if !worker.IsRunning {
-				delete(m.pool, id)
-				return nil
-			}
-		}
-	}
+	worker.stop()
+	worker.waitStop()
 }

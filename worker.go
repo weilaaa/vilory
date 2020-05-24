@@ -41,6 +41,18 @@ func NewWorker(id string) *Worker {
 	}
 }
 
+// Run should be used when run cmd without pipe
+func (r *Worker) Run(cmd string, RunningCall runFunc, FinishCall endFunC, arg ...string) error {
+	err := r.Start(cmd, RunningCall, FinishCall, arg...)
+	if err != nil {
+		return err
+	}
+
+	r.waitStop()
+	return nil
+}
+
+// Start must call DelWork when process end
 func (r *Worker) Start(cmd string, RunningCall runFunc, FinishCall endFunC, arg ...string) error {
 	r.cmd = exec.Command(cmd, arg...)
 	var err error
@@ -61,7 +73,7 @@ func (r *Worker) Start(cmd string, RunningCall runFunc, FinishCall endFunC, arg 
 	r.pid = r.cmd.Process.Pid
 
 	if r.master != nil {
-		err := r.master.RunWorker(r.Id)
+		err := r.master.runWorker(r.Id)
 		if err != nil {
 			return err
 		}
@@ -70,7 +82,7 @@ func (r *Worker) Start(cmd string, RunningCall runFunc, FinishCall endFunC, arg 
 	return nil
 }
 
-func (r *Worker) BindMaster(m *Master) error {
+func (r *Worker) bindMaster(m *Master) error {
 	if m == nil {
 		return errors.New("master is nil")
 	}
@@ -78,7 +90,7 @@ func (r *Worker) BindMaster(m *Master) error {
 	return nil
 }
 
-func (r *Worker) Wait() error {
+func (r *Worker) wait() error {
 	if r.pid == 0 {
 		return errors.New("r.pid is 0")
 	}
@@ -92,7 +104,7 @@ func (r *Worker) Wait() error {
 	return nil
 }
 
-func (r *Worker) Stop() {
+func (r *Worker) stop() {
 	if r.pid == 0 {
 		fmt.Printf("[ERROR] %s has no pid\n", r.Id)
 	}
@@ -140,6 +152,18 @@ func (r *Worker) Input(in string) error {
 	}
 }
 
-func (r *Worker) Output() io.ReadCloser {
+func (r *Worker) output() io.ReadCloser {
 	return r.out
+}
+
+func (r *Worker) waitStop() {
+	for {
+		time.Sleep(20 * time.Millisecond)
+		if !r.IsRunning {
+			r.master.Lock()
+			delete(r.master.pool, r.Id)
+			r.master.Unlock()
+			return
+		}
+	}
 }

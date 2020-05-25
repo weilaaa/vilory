@@ -7,6 +7,11 @@ vilory is better modify release of pegent.
 3. optimize: adjust error and log output
 
 ## quick start
+
+```
+go get "github.com/WeilaScofield/vilory"  
+```
+
 ```go
 package vilory
 
